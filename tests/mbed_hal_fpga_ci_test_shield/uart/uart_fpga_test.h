@@ -22,6 +22,9 @@
 
 #if DEVICE_SERIAL
 
+#include "hal/serial_api.h"
+#include "PinNames.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

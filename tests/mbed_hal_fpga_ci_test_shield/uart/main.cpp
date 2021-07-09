@@ -22,19 +22,20 @@
 #error [NOT_SUPPORTED] Test not supported for this form factor
 #else
 
-#include "utest/utest.h"
-#include "unity/unity.h"
-#include "greentea-client/test_env.h"
-#include "platform/mbed_critical.h"
 #include <stdlib.h>
+#include "bootstrap/mbed_assert.h"
+#include "bootstrap/mbed_atomic.h"
+#include "bootstrap/mbed_critical.h"
+#include "fpga_ci_test_shield/test_utils.h"
+#include "fpga_ci_test_shield/UARTTester.h"
+#include "greentea-client/test_env.h"
+#include "greentea-custom_io/custom_io.h"
 #include "hal/serial_api.h"
-#include "UARTTester.h"
-#include "pinmap.h"
-#include "test_utils.h"
-#include "us_ticker_api.h"
-#include "uart_fpga_test.h"
 #include "hal/static_pinmap.h"
-
+#include "hal/us_ticker_api.h"
+#include "uart_fpga_test.h"
+#include "unity/unity.h"
+#include "utest/utest.h"
 
 using namespace utest::v1;
 
@@ -120,10 +121,15 @@ static void uart_test_common(int baudrate, int data_bits, SerialParity parity, i
     // Limit the actual TX & RX chars to 8 bits for this test.
     int test_buff_bits = data_bits < 8 ? data_bits : 8;
 
+    // Use the us_ticker for delays during test.
+    const ticker_info_t *us_ticker_info = us_ticker_get_info();
+    uint32_t us_ticker_counter_mask = (1 << us_ticker_info->bits) - 1;
+    uint32_t ticks1, ticks2;
+    int64_t ticks_left = 0; // Has to be signed.
+
     // start_bit + data_bits + parity_bit + stop_bits
-    int packet_bits = 1 + data_bits + stop_bits + (parity == ParityNone ? 0 : 1);
-    us_timestamp_t packet_tx_time = 1000000 * packet_bits / baudrate;
-    const ticker_data_t *const us_ticker = get_us_ticker_data();
+    uint32_t packet_bits = 1 + data_bits + stop_bits + (parity == ParityNone ? 0 : 1);
+    uint32_t packet_tx_duration_in_ticks = packet_bits * us_ticker_info->frequency / baudrate;
 
     bool use_flow_control = (cts != NC && rts != NC) ? true : false;
 
@@ -209,10 +215,14 @@ static void uart_test_common(int baudrate, int data_bits, SerialParity parity, i
         tx_val = rand() % (1 << test_buff_bits);
         checksum += tx_val;
         serial_putc(&serial, tx_val);
-        us_timestamp_t end_ts = ticker_read_us(us_ticker) + 2 * packet_tx_time;
-        while (tester.rx_get_count() != reps && ticker_read_us(us_ticker) <= end_ts) {
+        ticks1 = us_ticker_read();
+        ticks_left = 2 * packet_tx_duration_in_ticks;
+        while (tester.rx_get_count() != reps && ticks_left > 0) {
             // Wait (no longer than twice the time of one packet transfer) for
             // the FPGA to receive data and update the byte counter.
+            ticks2 = us_ticker_read();
+            ticks_left -= (ticks2 - ticks1) & us_ticker_counter_mask;
+            ticks1 = ticks2;
         }
         TEST_ASSERT_EQUAL_UINT32(reps, tester.rx_get_count());
         TEST_ASSERT_EQUAL(0, tester.rx_get_parity_errors());
@@ -263,11 +273,15 @@ static void uart_test_common(int baudrate, int data_bits, SerialParity parity, i
     core_util_critical_section_enter();
     serial_irq_set(&serial, TxIrq, 0);
     core_util_critical_section_exit();
-    us_timestamp_t end_ts = ticker_read_us(us_ticker) + 2 * packet_tx_time;
-    while (ticker_read_us(us_ticker) <= end_ts) {
+    ticks1 = us_ticker_read();
+    ticks_left = 2 * packet_tx_duration_in_ticks;
+    while (ticks_left > 0) {
         // Wait twice the time of one packet transfer for the FPGA
         // to receive and process data.
-    };
+        ticks2 = us_ticker_read();
+        ticks_left -= (ticks2 - ticks1) & us_ticker_counter_mask;
+        ticks1 = ticks2;
+    }
     tester.rx_stop();
     TEST_ASSERT_EQUAL_UINT32(2 * PUTC_REPS, tester.rx_get_count());
     TEST_ASSERT_EQUAL(0, tester.rx_get_parity_errors());
@@ -315,12 +329,12 @@ static void uart_test_common(int baudrate, int data_bits, SerialParity parity, i
 
 void fpga_uart_init_free_test(PinName tx, PinName rx, PinName cts, PinName rts)
 {
-    bool use_flow_control = (cts != NC && rts != NC) ? true : false;
     serial_t serial;
     serial_init(&serial, tx, rx);
     serial_baud(&serial, 9600);
     serial_format(&serial, 8, ParityNone, 1);
 #if DEVICE_SERIAL_FC
+    bool use_flow_control = (cts != NC && rts != NC) ? true : false;
     if (use_flow_control) {
         serial_set_flow_control(&serial, FlowControlRTSCTS, rts, cts);
     }
@@ -410,7 +424,8 @@ Case cases[] = {
 utest::v1::status_t greentea_test_setup(const size_t number_of_cases)
 {
     GREENTEA_SETUP(240, "default_auto");
-    srand((unsigned) ticker_read_us(get_us_ticker_data()));
+    us_ticker_init();
+    srand((unsigned) us_ticker_read());
     return greentea_test_setup_handler(number_of_cases);
 }
 
@@ -418,6 +433,7 @@ Specification specification(greentea_test_setup, cases, greentea_test_teardown_h
 
 int main()
 {
+    greentea_init_custom_io();
     Harness::run(specification);
 }
 

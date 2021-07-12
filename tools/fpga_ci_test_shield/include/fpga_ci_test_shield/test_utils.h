@@ -581,9 +581,9 @@ const char *const AnalogoutMaps::name = ANALOGOUT_NAME;
 typedef Port<1, AnalogoutMaps, DefaultFormFactor, TF1> AnalogoutPort;
 #endif
 
-#if DEVICE_SERIAL && 0
-#if DEVICE_SERIAL_FC
+#if DEVICE_SERIAL
 #include "hal/serial_api.h"
+#if DEVICE_SERIAL_FC
 struct UARTMaps {
     static const PinMap *maps[];
     static const char *const pin_type_names[];

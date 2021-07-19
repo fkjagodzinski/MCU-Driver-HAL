@@ -156,6 +156,7 @@ add_subdirectory(bootstrap)
 add_subdirectory(hal)
 
 # Examples
+add_subdirectory(examples/analogin EXCLUDE_FROM_ALL)
 add_subdirectory(examples/flash EXCLUDE_FROM_ALL)
 add_subdirectory(examples/gpio EXCLUDE_FROM_ALL)
 add_subdirectory(examples/serial EXCLUDE_FROM_ALL)

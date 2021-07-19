@@ -30,10 +30,12 @@ Place the generated `mbed_config.cmake` file in the directory specified by `MBED
 
 The following table details the currently supported MCU-Driver-HAL examples.
 
-|     API       |   Description    | 
+|     API       |   Description    |
 |---            |---                       |
+| analogin      |   Reads an analog input pin and reports the voltage with a trace  |
 | flash         |   Erases, reads, writes the flash at various locations     |
 | gpio          |   Blinks two LEDs in alternation using a loop as a delay   |
+| pwm           |   Ramps two LEDs in alternation using a loop as a delay    |
 | serial        |   Prints some text to the console     |
 | spi           |   Initialises the SPI interface and write a byte     |
 | trace         |   Prints traces for the supported tracing levels     |
@@ -63,7 +65,7 @@ Expected configuration output:
 -- Check for working C compiler: /usr/local/bin/arm-none-eabi-gcc - skipped
 -- Detecting C compile features
 -- Detecting C compile features - done
--- Found Python3: /usr/local/Frameworks/Python.framework/Versions/3.9/bin/python3.9 (found version "3.9.1") found components: Interpreter 
+-- Found Python3: /usr/local/Frameworks/Python.framework/Versions/3.9/bin/python3.9 (found version "3.9.1") found components: Interpreter
 -- Checking for Python package prettytable -- found
 -- Checking for Python package future -- found
 -- Checking for Python package jinja2 -- found

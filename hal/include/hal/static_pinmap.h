@@ -31,7 +31,31 @@
 #include "qspi_api.h"
 #include "ospi_api.h"
 #include "can_api.h"
+
+// When set to 0, this provides local definitions of constexpr macros. The
+// original, mbed-os versions were provided in mstd_cstddef header.
+// Setting this back ON will require some additional work on dependencies.
+#define EXTRA_DEPENDENCIES_REQUIRED__MSTD_CONSTEXPR 0
+
+#if EXTRA_DEPENDENCIES_REQUIRED__MSTD_CONSTEXPR
+
 #include <mstd_cstddef>
+
+#else // EXTRA_DEPENDENCIES_REQUIRED__MSTD_CONSTEXPR
+
+#include <cstddef>
+/* Macros that can be used to mark functions and objects that are
+ * constexpr in C++14 or later, but not in earlier versions.
+ */
+#if __cplusplus >= 201402
+#define MSTD_CONSTEXPR_FN_14 constexpr
+#define MSTD_CONSTEXPR_OBJ_14 constexpr
+#else
+#define MSTD_CONSTEXPR_FN_14 inline
+#define MSTD_CONSTEXPR_OBJ_14 const
+#endif
+
+#endif // EXTRA_DEPENDENCIES_REQUIRED__MSTD_CONSTEXPR
 
 #if STATIC_PINMAP_READY
 #include "PeripheralPinMaps.h"

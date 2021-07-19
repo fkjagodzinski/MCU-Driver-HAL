@@ -42,6 +42,7 @@ The following table details the currently supported MCU-Driver-HAL examples.
 | trng          |   Gets random data from the true random number generator     |
 | us_ticker_delay |   Blinks two LEDs in alteration using the microsecond ticker as a delay     |
 | us_ticker_interrupt |   Blinks an LED in a callback     |
+| crc           |   Calculates the CRC of an array of a data stream    |
 
 ## Build
 

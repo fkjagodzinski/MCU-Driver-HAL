@@ -166,6 +166,7 @@ add_subdirectory(examples/trng EXCLUDE_FROM_ALL)
 add_subdirectory(examples/us_ticker_delay EXCLUDE_FROM_ALL)
 add_subdirectory(examples/us_ticker_interrupt EXCLUDE_FROM_ALL)
 add_subdirectory(examples/pwm EXCLUDE_FROM_ALL)
+add_subdirectory(examples/crc EXCLUDE_FROM_ALL)
 
 # greentea-client with custom IO
 add_subdirectory(tools/greentea-client)

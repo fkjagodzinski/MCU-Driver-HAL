@@ -22,6 +22,8 @@
 
 #if DEVICE_SPI
 
+#include "PinNames.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -60,7 +62,7 @@ void fpga_spi_test_common_no_ss(PinName mosi, PinName miso, PinName sclk);
 }
 #endif
 
-#endif
+#endif // DEVICE_SPI
 
 #endif
 

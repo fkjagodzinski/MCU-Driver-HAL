@@ -22,15 +22,16 @@
 #error [NOT_SUPPORTED] Test not supported for this form factor
 #else
 
-#include "utest/utest.h"
-#include "unity/unity.h"
+#include "fpga_ci_test_shield/SPIMasterTester.h"
+#include "fpga_ci_test_shield/test_utils.h"
 #include "greentea-client/test_env.h"
-#include "mbed.h"
-#include "SPIMasterTester.h"
-#include "pinmap.h"
+#include "greentea-custom_io/custom_io.h"
+#include "hal/gpio_api.h"
+#include "hal/pinmap.h"
 #include "hal/static_pinmap.h"
-#include "test_utils.h"
 #include "spi_fpga_test.h"
+#include "unity/unity.h"
+#include "utest/utest.h"
 
 using namespace utest::v1;
 
@@ -115,13 +116,13 @@ static PinName find_ss_pin(PinName mosi, PinName miso, PinName sclk)
 }
 
 /* Function handles ss line if ss is specified. */
-static void handle_ss(DigitalOut *ss, bool select)
+static void handle_ss(gpio_t *ss, bool select)
 {
     if (ss) {
         if (select) {
-            *ss = SS_ASSERT;
+            gpio_write(ss, SS_ASSERT);
         } else {
-            *ss = SS_DEASSERT;
+            gpio_write(ss, SS_DEASSERT);
         }
     }
 }
@@ -203,7 +204,7 @@ void fpga_spi_test_common(PinName mosi, PinName miso, PinName sclk, PinName ssel
     uint32_t rx_cnt = TRANSFER_COUNT;
     uint8_t fill_symbol = (uint8_t)FILL_SYM;
     PinName ss_pin = (auto_ss ? ssel : NC);
-    DigitalOut *ss = NULL;
+    gpio_t *ss = NULL;
 
     spi_get_capabilities(ssel, false, &capabilities);
 
@@ -252,7 +253,8 @@ void fpga_spi_test_common(PinName mosi, PinName miso, PinName sclk, PinName ssel
 
     // Manually handle SS pin
     if (!auto_ss) {
-        ss = new DigitalOut(ssel, SS_DEASSERT);
+        ss = new gpio_t;
+        gpio_init_out_ex(ss, ssel, SS_DEASSERT);
     }
 
     if (init_direct) {
@@ -303,7 +305,7 @@ void fpga_spi_test_common(PinName mosi, PinName miso, PinName sclk, PinName ssel
                         checksum += ((0 - i) & sym_mask);
                         break;
                     case (BUFFERS_TX_LT_RX):
-                        if (i < tx_cnt) {
+                        if (i < (int)tx_cnt) {
                             checksum += ((0 - i) & sym_mask);
                         } else {
                             checksum += (fill_symbol & sym_mask);
@@ -323,11 +325,11 @@ void fpga_spi_test_common(PinName mosi, PinName miso, PinName sclk, PinName ssel
             result = spi_master_block_write(&spi, (const char *)tx_buf, tx_cnt, (char *)rx_buf, rx_cnt, 0xF5);
             handle_ss(ss, false);
 
-            for (int i = 0; i < rx_cnt; i++) {
+            for (uint32_t i = 0; i < rx_cnt; i++) {
                 TEST_ASSERT_EQUAL(i & sym_mask, rx_buf[i]);
             }
 
-            for (int i = rx_cnt; i < TRANSFER_COUNT; i++) {
+            for (uint32_t i = rx_cnt; i < TRANSFER_COUNT; i++) {
                 TEST_ASSERT_EQUAL(0xFF, rx_buf[i]);
             }
 
@@ -345,7 +347,7 @@ void fpga_spi_test_common(PinName mosi, PinName miso, PinName sclk, PinName ssel
             async_trasfer_done = false;
 
             handle_ss(ss, true);
-            spi_master_transfer(&spi, tx_buf, TRANSFER_COUNT, rx_buf, TRANSFER_COUNT, 8, (uint32_t)spi_async_handler, SPI_EVENT_COMPLETE, DMA_USAGE_NEVER);
+            spi_master_transfer(&spi, tx_buf, TRANSFER_COUNT, rx_buf, TRANSFER_COUNT, 8, (uint32_t)spi_async_handler, SPI_EVENT_COMPLETE);
 
             while (!async_trasfer_done);
             handle_ss(ss, false);
@@ -366,6 +368,11 @@ void fpga_spi_test_common(PinName mosi, PinName miso, PinName sclk, PinName ssel
     TEST_ASSERT_EQUAL(sym_count, tester.get_transfer_count());
     TEST_ASSERT_EQUAL(checksum, tester.get_receive_checksum());
 
+    if (!auto_ss) {
+        handle_ss(ss, false);
+        gpio_free(ss);
+        delete ss;
+    }
     spi_free(&spi);
     tester.reset();
 }
@@ -429,6 +436,7 @@ Specification specification(greentea_test_setup, cases, greentea_test_teardown_h
 
 int main()
 {
+    greentea_init_custom_io();
     Harness::run(specification);
 }
 
